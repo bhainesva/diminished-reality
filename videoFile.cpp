@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <vector>
 #include "opencv2/highgui/highgui.hpp"
+#include "pm_minimal.cpp"
 
 using namespace std;
 using namespace cv;
@@ -28,7 +29,8 @@ void onClick(int event, int x, int y, int flags, void* userdata) {
 
 int main(int argc, char* argv[])
 {
-    VideoCapture cap("img.MOV"); // open the video file for reading
+    check_im();
+    VideoCapture cap("starburst.mp4"); // open the video file for reading
 
     if ( !cap.isOpened() )  // if not success, exit program
     {
@@ -40,11 +42,11 @@ int main(int argc, char* argv[])
 
      cout << "Frame per seconds : " << fps << endl;
 
-    namedWindow("MyVideo",CV_WINDOW_AUTOSIZE); //create a window called "MyVideo"
+    namedWindow(winName, CV_WINDOW_AUTOSIZE); //create a window called "MyVideo"
     Mat src;
     bool bSuccess = cap.read(src); // read a new frame from video
     namedWindow(winName,WINDOW_NORMAL);
-    setMouseCallback("MyVideo",onClick,(void*)&ptVector);
+    setMouseCallback(winName, onClick,(void*)&ptVector);
     imshow(winName,src);
 
     while(1) {
@@ -97,7 +99,7 @@ int main(int argc, char* argv[])
     conts2.push_back(cvPtVector);
     drawContours( src, conts2, -1, Scalar(0));
     fillPoly( src, conts2, Scalar(128));
-    imshow("MyVideo", src);
+    imshow(winName, src);
     waitKey();
 
     while(1) {
@@ -134,7 +136,7 @@ int main(int argc, char* argv[])
         conts2.push_back(cvPtVector);
         drawContours( src, conts2, -1, Scalar(0));
         fillPoly( src, conts2, Scalar(128));
-        imshow("MyVideo", src);
+        imshow(winName, src);
 
         if(waitKey(30) == 27){ //wait for 'esc' key press for 30 ms. If 'esc' key is pressed, break loop
             cout << "esc key is pressed by user" << endl;

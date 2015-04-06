@@ -199,7 +199,7 @@ void patchmatch(BITMAP *a, BITMAP *b, BITMAP *&ann, BITMAP *&annd) {
     }
   }
 }
-
+/*
 int main(int argc, char *argv[]) {
   argc--;
   argv++;
@@ -217,3 +217,4 @@ int main(int argc, char *argv[]) {
   save_bitmap(annd, argv[3]);
   return 0;
 }
+*/
