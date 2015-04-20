@@ -10,13 +10,7 @@
 using namespace std;
 using namespace cv;
 
-//Mat src,img;
-int ialpha = 20;
-int ibeta=20; 
-int igamma=20;
-
 const char* winName="MyVideo";
-int i=0;
 char imgName[15];
 vector<Point> ptVector;
 
@@ -45,7 +39,6 @@ void fillarea(Mat img, vector<vector<Point> > contour) {
             } 
         }
     }
-
 }
 
 
@@ -120,6 +113,7 @@ int main(int argc, char* argv[])
 
     waitKey();
     fillarea(src, conts2);
+    // Temporary comment while working on fillarea
     /*
     while(1) {
         Mat src;
