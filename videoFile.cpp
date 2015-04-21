@@ -26,19 +26,53 @@ void onClick(int event, int y, int x, int flags, void* userdata) {
 void fillarea(Mat img, vector<vector<Point> > contour) {
     cout << "Printing area." << endl;
     double area = contourArea(contour[0]);
-    printf("Area: %f\n", area);
+    cout << "Area: " << area << endl;
+    cout << "Depth: " << img.depth() << endl;
 
+    /*
+    vector<Point*> changing;
     // Figure out which points need to change, ie inside the polygon defined by the contour
     // Faster way woud be to do fillPoly, then threshold, then only change the white (/black?) pixels 
-    vector<Point> changing;
     for (int j = 0; j < img.rows; j++) {
         for (int i = 0; i < img.cols; i++) {
             if (pointPolygonTest(contour[0], Point(i,j), false) != -1) {
-                printf("row: %d\tcol: %d\n", j, i);
-                changing.push_back(Point(i,j));
+                Point p = Point(i,j);
+                int val = img.at<unsigned char>(p);
+                cout << j << ", " << i << ": " << val << endl;
+                changing.push_back(&p);
             } 
         }
     }
+    */
+
+    // Initial implementation with a bounding box for area to be filled
+    Rect bound = boundingRect( Mat(contour[0]) );
+    Mat bounded = Mat(img, bound);
+    BITMAP* boundbit = createFromMat(bounded);
+    save_bitmap(boundbit, "bounded.png");
+    //Show in a window
+    //namedWindow( "Contours", CV_WINDOW_AUTOSIZE );
+    //imshow( "Contours", bounded);
+
+    // Source = Img - Target
+    // But since we don't want to get patches pointing to themselves, set target area to one color
+    // in a and another in b, since patchmatch finds correspondences a => b
+    Mat aMat = img.clone();
+    Mat bMat = img.clone();
+    rectangle(aMat, bound, Scalar(255), CV_FILLED);  
+    rectangle(bMat, bound, Scalar(0), CV_FILLED); 
+    //namedWindow( "Zeroed Rect", CV_WINDOW_AUTOSIZE );
+    //imshow( "Zeroed Rect", img);
+    //BITMAP a = Bitmap.createBitmap(aMat.rows
+
+    // Now get correspondences from patchmatch
+    BITMAP *a = createFromMat(aMat);
+    BITMAP *b = createFromMat(bMat);
+    BITMAP *ann = NULL, *annd = NULL;
+    patchmatch(a, b, ann, annd);
+
+    waitKey(0);
+    return;
 }
 
 
@@ -73,8 +107,9 @@ int main(int argc, char* argv[])
     // Draw the contour
     vector<vector<Point> > conts;
     conts.push_back(ptVector);
-    drawContours( src, conts, -1, Scalar(128));
-    imshow(winName, src);
+    Mat src_contourlines = src.clone();
+    drawContours( src_contourlines, conts, -1, Scalar(128));
+    imshow(winName, src_contourlines);
     waitKey();
 
     // Snakes parameters
@@ -107,12 +142,14 @@ int main(int argc, char* argv[])
 
     vector<vector<Point> > conts2;
     conts2.push_back(cvPtVector);
+    Mat copysrc = src.clone();
+    fillarea(copysrc, conts2);
+
     drawContours( src, conts2, -1, Scalar(0));
     fillPoly( src, conts2, Scalar(128));
     imshow(winName, src);
 
     waitKey();
-    fillarea(src, conts2);
     // Temporary comment while working on fillarea
     /*
     while(1) {
