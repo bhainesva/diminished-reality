@@ -19,6 +19,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <climits>
+#include "opencv2/opencv.hpp"
+#include <opencv2/legacy/legacy.hpp>
 
 #ifndef MAX
 #define MAX(a, b) ((a)>(b)?(a):(b))
@@ -44,7 +46,6 @@ void check_im() {
 }
 
 BITMAP *load_bitmap(const char *filename) {
-  check_im();
   char rawname[256], txtname[256];
   strcpy(rawname, filename);
   strcpy(txtname, filename);
@@ -72,9 +73,25 @@ BITMAP *load_bitmap(const char *filename) {
   fclose(f);
   return ans;
 }
+using namespace cv;
+
+BITMAP *createFromMat(Mat img) {
+    /*
+    int h = img.rows, w = img.cols;;
+    BITMAP *ans = new BITMAP(w, h);
+    unsigned char *p = (unsigned char *) ans->data;
+    for (int i = 0; i < w*h; i++) {
+        int s = img.at<unsigned char>(i);
+        *p++ = s; *p++ = s; *p++ = s;   // BW => "color". adapt later 
+        *p++ = 0;
+    }
+    return ans;
+    */
+    imwrite("matsave.png", img);
+    return load_bitmap("matsave.png");
+}
 
 void save_bitmap(BITMAP *bmp, const char *filename) {
-  check_im();
   char rawname[256];
   strcpy(rawname, filename);
   if (!strstr(rawname, ".")) { fprintf(stderr, "Error writing image '%s': no extension found\n", filename); exit(1); }
@@ -218,3 +235,4 @@ int main(int argc, char *argv[]) {
   return 0;
 }
 */
+
