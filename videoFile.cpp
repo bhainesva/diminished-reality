@@ -14,17 +14,17 @@ const char* winName="MyVideo";
 char imgName[15];
 vector<Point> ptVector;
 
-void onClick(int event, int y, int x, int flags, void* userdata) {
+void onClick(int event, int x, int y, int flags, void* userdata) {
     if  ( event == EVENT_LBUTTONDOWN ) {
         cout << "Left button of the mouse is clicked - position (" << x << ", " << y << ")" << endl;
         vector<Point> *p = static_cast<vector<Point> *>(userdata);
-        p->push_back(Point(y, x));
+        p->push_back(Point(x, y));
     }
 }
 
 
 void fillarea(Mat img, vector<vector<Point> > contour) {
-    cout << "Printing area." << endl;
+    Mat imgClone = img.clone();
     double area = contourArea(contour[0]);
     cout << "Area: " << area << endl;
     cout << "Depth: " << img.depth() << endl;
@@ -50,6 +50,7 @@ void fillarea(Mat img, vector<vector<Point> > contour) {
     Mat bounded = Mat(img, bound);
     BITMAP* boundbit = createFromMat(bounded);
     save_bitmap(boundbit, "bounded.png");
+    
     //Show in a window
     //namedWindow( "Contours", CV_WINDOW_AUTOSIZE );
     //imshow( "Contours", bounded);
@@ -59,17 +60,42 @@ void fillarea(Mat img, vector<vector<Point> > contour) {
     // in a and another in b, since patchmatch finds correspondences a => b
     Mat aMat = img.clone();
     Mat bMat = img.clone();
-    rectangle(aMat, bound, Scalar(255), CV_FILLED);  
-    rectangle(bMat, bound, Scalar(0), CV_FILLED); 
-    //namedWindow( "Zeroed Rect", CV_WINDOW_AUTOSIZE );
-    //imshow( "Zeroed Rect", img);
-    //BITMAP a = Bitmap.createBitmap(aMat.rows
 
-    // Now get correspondences from patchmatch
-    BITMAP *a = createFromMat(aMat);
-    BITMAP *b = createFromMat(bMat);
-    BITMAP *ann = NULL, *annd = NULL;
-    patchmatch(a, b, ann, annd);
+    cout << "Entering loop." << endl;
+    int pmod = patch_w / 2;
+    while (bound.width > pmod && bound.height > pmod) {
+        cout << "Looping bounds." << endl;
+        rectangle(bMat, bound, Scalar(255), CV_FILLED); 
+        bound = bound + Point(pmod, pmod);
+        bound -= Size(pmod, pmod);
+        // Now get correspondences from patchmatch
+        BITMAP *a = createFromMat(aMat);
+        BITMAP *b = createFromMat(bMat);
+        BITMAP *ann = NULL, *annd = NULL;
+        patchmatch(a, b, ann, annd);
+        Point start = bound.tl();
+        Point end = bound.br();
+        
+        // Fill top and bottom rows
+        for (int ay = start.y; ay <= end.y; ay += end.y - start.y) {
+            for (int ax = start.x; ax < end.x; ax += patch_w) {
+                int w = (*ann)[ay][ax];
+                int u = INT_TO_X(w), v = INT_TO_Y(w);
+                for (int j = 0; j < patch_w; j++) {
+                    for (int i = 0; i < patch_w; i++) {
+                        imgClone.at<unsigned char>(ay+j,ax+i) = 0;
+                            //imgClone.at<unsigned char>(v+j,u+i);                    
+                            //Uncomment this line to fill with Patchmatch 
+                    }
+                }
+            }
+        }
+        imshow("Filled", imgClone);
+        waitKey(0);
+            //cout << "ax: " << ax << "\tay: " << ay << endl;
+            //cout << "u: " << u << "\tv: " << v << endl;
+            //cout << "Patch filled." << endl;
+    }
 
     waitKey(0);
     return;
@@ -110,7 +136,6 @@ int main(int argc, char* argv[])
     Mat src_contourlines = src.clone();
     drawContours( src_contourlines, conts, -1, Scalar(128));
     imshow(winName, src_contourlines);
-    waitKey();
 
     // Snakes parameters
     float alpha=0.1f;
@@ -149,7 +174,6 @@ int main(int argc, char* argv[])
     fillPoly( src, conts2, Scalar(128));
     imshow(winName, src);
 
-    waitKey();
     // Temporary comment while working on fillarea
     /*
     while(1) {
