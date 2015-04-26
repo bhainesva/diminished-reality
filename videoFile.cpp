@@ -30,6 +30,28 @@ Mat getNeighbors(Mat img, Point p) {
 	return ret;
 }
 
+int getAverageInPatches(Mat img, BITMAP *ann, int x, int y) {
+    Mat imgclone = img.clone();
+    int ax = max(0, x - patch_w);
+    int ay = max(0, y - patch_w);
+    //cout << "x: " << x << " y: " << y << endl;
+    //cout << "patch_w: " << patch_w << endl;
+    //cout << "ax: " << ax << " ay: " << ay << endl;
+    int total = 0;
+    int count = 1;
+    for (int i=ax; i < x; i++) {
+        for (int j=ay; j < y; j++) {
+            int w = (*ann)[j][i];
+            int u = INT_TO_X(w), v = INT_TO_Y(w);
+            //circle(imgclone, Point(i, j), 4, 255);
+            //circle(imgclone, Point(u + (x-i), v + (y-j)), 4, 1);
+            total += img.at<unsigned char>(v + (y - j), u + (x - i));
+            count++;
+        }
+    }
+    return (int)(total/count);
+}
+
 
 void fill(Mat img, Mat mask) {
     for (int i=0;i < mask.size().width; i++) {
@@ -72,24 +94,27 @@ void fillarea(Mat img, vector<vector<Point> > contour) {
     BITMAP *roim = createFromMat(img);
     BITMAP *ann = NULL, *annd = NULL;
     patchmatch(roim, a, ann, annd);
+
+    Mat imgC = img.clone();
     
-    // Fill top and bottom rows
-    for (int ax = 0; ax <= roi.size().width-patch_w; ax += patch_w) {
-        for (int ay = 0; ay <= roi.size().height-patch_w; ay += patch_w) {
-            int w = (*ann)[ay+bound.tl().y][ax+bound.tl().x];
-            int u = INT_TO_X(w), v = INT_TO_Y(w);
-            for (int j = 0; j <= patch_w; j++) {
-                for (int i = 0; i <= patch_w; i++) {
-                    roi.at<unsigned char>(ay+j,ax+i) = aMat.at<unsigned char>(v+j,u+i);                    
-                }
-            }
+    // Fill ROI; Each pixel gets average value from all corresponding patches it's a part of
+    for (int ax = bound.tl().x; ax <= bound.br().x; ax++) {
+        for (int ay = bound.tl().y; ay <= bound.br().y; ay++) {
+            cout << "A" << (int)img.at<unsigned char>(ay, ax) << endl;
+            cout << "B" << getAverageInPatches(img, ann, ax, ay) << endl;
+            img.at<unsigned char>(ay,ax) = getAverageInPatches(img, ann, ax, ay);
         }
     }
 
+    destroyAllWindows();
+    imshow("Clone", imgC);
+    cout << "WAIT" << endl;
+    waitKey(0);
     imshow("Filled", img);
 
     cout << "DONE" << endl;
     waitKey(0);
+    //getAverageInPatch(img, ann, bound.tl().x, bound.tl().y);
     return;
 }
 
