@@ -46,7 +46,6 @@ void check_im() {
 }
 
 BITMAP *load_bitmap(const char *filename) {
-  check_im();
   char rawname[256], txtname[256];
   strcpy(rawname, filename);
   strcpy(txtname, filename);
@@ -82,7 +81,6 @@ BITMAP *createFromMat(Mat img) {
 }
 
 void save_bitmap(BITMAP *bmp, const char *filename) {
-  check_im();
   char rawname[256];
   strcpy(rawname, filename);
   if (!strstr(rawname, ".")) { fprintf(stderr, "Error writing image '%s': no extension found\n", filename); exit(1); }

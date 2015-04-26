@@ -22,121 +22,73 @@ void onClick(int event, int x, int y, int flags, void* userdata) {
     }
 }
 
+Mat getNeighbors(Mat img, Point p) {
+    int x = p.x;
+    int y = p.y;
+    Rect ROI(Point(max(0,x-1), max(0, y-1)), Point(min(x+2, img.size[0]), min(img.size[1], y+2)));
+	Mat ret = img(ROI);
+	return ret;
+}
+
+
+void fill(Mat img, Mat mask) {
+    for (int i=0;i < mask.size().width; i++) {
+        for (int j=0;j < mask.size().height; j++) {
+            mask.at<unsigned char>(j,i) = 0;
+        }
+    }
+}
+
+void fillAvg(Mat img, Mat mask, Point tl) {
+    for (int i=0;i < mask.size().width; i++) {
+        for (int j=0;j < mask.size().height; j++) {
+            Mat neighbors = getNeighbors(img, Point(i+tl.x, j+tl.y));
+            mask.at<unsigned char>(j,i) = (int)(sum(neighbors)[0]/countNonZero(neighbors));
+        }
+    }
+}
 
 void fillarea(Mat img, vector<vector<Point> > contour) {
-    Mat imgClone = img.clone();
     double area = contourArea(contour[0]);
     cout << "Area: " << area << endl;
     cout << "Depth: " << img.depth() << endl;
 
-    /*
-    vector<Point*> changing;
-    // Figure out which points need to change, ie inside the polygon defined by the contour
-    // Faster way woud be to do fillPoly, then threshold, then only change the white (/black?) pixels 
-    for (int j = 0; j < img.rows; j++) {
-        for (int i = 0; i < img.cols; i++) {
-            if (pointPolygonTest(contour[0], Point(i,j), false) != -1) {
-                Point p = Point(i,j);
-                int val = img.at<unsigned char>(p);
-                cout << j << ", " << i << ": " << val << endl;
-                changing.push_back(&p);
-            } 
-        }
-    }
-    */
 
     // Initial implementation with a bounding box for area to be filled
     Rect bound = boundingRect( Mat(contour[0]) );
-    bound += Size(patch_w - (bound.width % patch_w), patch_w - (bound.height % patch_w));
+    Mat roi = img(bound);
+    fill(img, roi);
+    fillAvg(img, roi, bound.tl());
+    //imshow("TEST", img);
+    //cout << "TEST";
+    //waitKey(0);
 
-    // Source = Img - Target
-    // But since we don't want to get patches pointing to themselves, set target area to one color
-    // in a and another in b, since patchmatch finds correspondences a => b
-
-    cout << "Entering loop." << endl;
-    int pmod = patch_w / 2;
-    while (bound.width >= pmod && bound.height >= pmod) {
-        cout << "Looping bounds." << endl;
-        //bound += Point(pmod, pmod);
-        Mat aMat = img.clone();
-        Mat bMat = img.clone();
-        bound = bound + Point(patch_w, patch_w);
-        bound -= Size(patch_w*2, patch_w*2);
-        rectangle(aMat, bound, Scalar(0), CV_FILLED); 
-        rectangle(bMat, bound, Scalar(255), CV_FILLED);
-        // Now get correspondences from patchmatch
-        BITMAP *a = createFromMat(aMat);
-        BITMAP *b = createFromMat(bMat);
-        BITMAP *ann = NULL, *annd = NULL;
-        patchmatch(a, b, ann, annd);
-        Rect fill = Rect(bound) - Point(pmod, pmod);
-        fill += Size(patch_w, patch_w);
-        Point start = fill.tl();
-        Point end = fill.br();
-        
-        // Fill top and bottom rows
-        int ay = start.y;
-            for (int ax = start.x; ax <= end.x; ax += patch_w) {
-                int w = (*ann)[ay][ax];
-                int u = INT_TO_X(w), v = INT_TO_Y(w);
-                //int u = 0, v = 0;
-                for (int j = 0; j <= patch_w; j++) {
-                    for (int i = 0; i <= patch_w; i++) {
-                        imgClone.at<unsigned char>(ay+j,ax+i) =
-                            imgClone.at<unsigned char>(v+j,u+i);                    
-                            //Uncomment this line to fill with Patchmatch 
-                    }
+    cout << "Looping bounds." << endl;
+    Mat aMat = img.clone();
+    bound = bound + Size(patch_w, patch_w);
+    rectangle(aMat, bound, Scalar(0), CV_FILLED); 
+    // Now get correspondences from patchmatch
+    BITMAP *a = createFromMat(aMat);
+    BITMAP *roim = createFromMat(img);
+    BITMAP *ann = NULL, *annd = NULL;
+    patchmatch(roim, a, ann, annd);
+    
+    // Fill top and bottom rows
+    for (int ax = 0; ax <= roi.size().width-patch_w; ax += patch_w) {
+        for (int ay = 0; ay <= roi.size().height-patch_w; ay += patch_w) {
+            int w = (*ann)[ay+bound.tl().y][ax+bound.tl().x];
+            int u = INT_TO_X(w), v = INT_TO_Y(w);
+            for (int j = 0; j <= patch_w; j++) {
+                for (int i = 0; i <= patch_w; i++) {
+                    roi.at<unsigned char>(ay+j,ax+i) = aMat.at<unsigned char>(v+j,u+i);                    
                 }
             }
-        ay = end.y;
-            for (int ax = start.x; ax <= end.x; ax += patch_w) {
-                int w = (*ann)[ay][ax];
-                int u = INT_TO_X(w), v = INT_TO_Y(w);
-                //int u = 0, v = 0;
-                for (int j = 0; j <= patch_w; j++) {
-                    for (int i = 0; i <= patch_w; i++) {
-                        imgClone.at<unsigned char>(ay+j,ax+i) = 
-                            imgClone.at<unsigned char>(v+j,u+i);                    
-                            //Uncomment this line to fill with Patchmatch 
-                    }
-                }
-            }
-
-        // Fill left and right rows
-        int ax = start.x;
-            for (int ay = start.y; ay <= end.y; ay += patch_w) {
-                int w = (*ann)[ay][ax];
-                int u = INT_TO_X(w), v = INT_TO_Y(w);
-                //int u = 0, v = 0;
-                for (int j = 0; j <= patch_w; j++) {
-                    for (int i = 0; i <= patch_w; i++) {
-                        imgClone.at<unsigned char>(ay+j,ax+i) =
-                            imgClone.at<unsigned char>(v+j,u+i);                    
-                            //Uncomment this line to fill with Patchmatch 
-                    }
-                }
-            }
-        ax = end.x + pmod;
-            for (int ay = start.y; ay <= end.y; ay += patch_w) {
-                int w = (*ann)[ay][ax];
-                int u = INT_TO_X(w), v = INT_TO_Y(w);
-                //int u = 0, v = 0;
-                for (int j = 0; j <= patch_w; j++) {
-                    for (int i = 0; i <= patch_w; i++) {
-                        imgClone.at<unsigned char>(ay+j,ax+i) =
-                            imgClone.at<unsigned char>(v+j,u+i);                    
-                            //Uncomment this line to fill with Patchmatch 
-                    }
-                }
-            }
-        //
-        //waitKey(0);
-            //cout << "ax: " << ax << "\tay: " << ay << endl;
-            //cout << "u: " << u << "\tv: " << v << endl;
-            //cout << "Patch filled." << endl;
+        }
     }
-    imshow("Filled", imgClone);
 
+    imshow("Filled", img);
+
+    cout << "DONE" << endl;
     waitKey(0);
     return;
 }
@@ -144,7 +96,6 @@ void fillarea(Mat img, vector<vector<Point> > contour) {
 
 int main(int argc, char* argv[])
 {
-    check_im();
     VideoCapture cap("starburst.mp4"); // open the video file for reading
 
     if ( !cap.isOpened() )  // if not success, exit program
