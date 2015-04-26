@@ -48,42 +48,38 @@ void fillarea(Mat img, vector<vector<Point> > contour) {
     // Initial implementation with a bounding box for area to be filled
     Rect bound = boundingRect( Mat(contour[0]) );
     bound += Size(patch_w - (bound.width % patch_w), patch_w - (bound.height % patch_w));
-    Mat bounded = Mat(img, bound);
-    BITMAP* boundbit = createFromMat(bounded);
-    save_bitmap(boundbit, "bounded.png");
-    
-    //Show in a window
-    //namedWindow( "Contours", CV_WINDOW_AUTOSIZE );
-    //imshow( "Contours", bounded);
 
     // Source = Img - Target
     // But since we don't want to get patches pointing to themselves, set target area to one color
     // in a and another in b, since patchmatch finds correspondences a => b
-    Mat aMat = img.clone();
-    Mat bMat = img.clone();
 
     cout << "Entering loop." << endl;
     int pmod = patch_w / 2;
     while (bound.width >= pmod && bound.height >= pmod) {
         cout << "Looping bounds." << endl;
         //bound += Point(pmod, pmod);
+        Mat aMat = img.clone();
+        Mat bMat = img.clone();
         bound = bound + Point(patch_w, patch_w);
         bound -= Size(patch_w*2, patch_w*2);
-        rectangle(bMat, bound, Scalar(255), CV_FILLED); 
+        rectangle(aMat, bound, Scalar(0), CV_FILLED); 
+        rectangle(bMat, bound, Scalar(255), CV_FILLED);
         // Now get correspondences from patchmatch
         BITMAP *a = createFromMat(aMat);
         BITMAP *b = createFromMat(bMat);
         BITMAP *ann = NULL, *annd = NULL;
         patchmatch(a, b, ann, annd);
-        Point start = bound.tl();
-        Point end = bound.br();
+        Rect fill = Rect(bound) - Point(pmod, pmod);
+        fill += Size(patch_w, patch_w);
+        Point start = fill.tl();
+        Point end = fill.br();
         
         // Fill top and bottom rows
         int ay = start.y;
             for (int ax = start.x; ax <= end.x; ax += patch_w) {
-                //int w = (*ann)[ay][ax];
-                //int u = INT_TO_X(w), v = INT_TO_Y(w);
-                int u = 0, v = 0;
+                int w = (*ann)[ay][ax];
+                int u = INT_TO_X(w), v = INT_TO_Y(w);
+                //int u = 0, v = 0;
                 for (int j = 0; j <= patch_w; j++) {
                     for (int i = 0; i <= patch_w; i++) {
                         imgClone.at<unsigned char>(ay+j,ax+i) =
@@ -94,9 +90,9 @@ void fillarea(Mat img, vector<vector<Point> > contour) {
             }
         ay = end.y;
             for (int ax = start.x; ax <= end.x; ax += patch_w) {
-                //int w = (*ann)[ay][ax];
-                //int u = INT_TO_X(w), v = INT_TO_Y(w);
-                int u = 0, v = 0;
+                int w = (*ann)[ay][ax];
+                int u = INT_TO_X(w), v = INT_TO_Y(w);
+                //int u = 0, v = 0;
                 for (int j = 0; j <= patch_w; j++) {
                     for (int i = 0; i <= patch_w; i++) {
                         imgClone.at<unsigned char>(ay+j,ax+i) = 
@@ -105,12 +101,13 @@ void fillarea(Mat img, vector<vector<Point> > contour) {
                     }
                 }
             }
+
         // Fill left and right rows
         int ax = start.x;
             for (int ay = start.y; ay <= end.y; ay += patch_w) {
-                //int w = (*ann)[ay][ax];
-                //int u = INT_TO_X(w), v = INT_TO_Y(w);
-                int u = 0, v = 0;
+                int w = (*ann)[ay][ax];
+                int u = INT_TO_X(w), v = INT_TO_Y(w);
+                //int u = 0, v = 0;
                 for (int j = 0; j <= patch_w; j++) {
                     for (int i = 0; i <= patch_w; i++) {
                         imgClone.at<unsigned char>(ay+j,ax+i) =
@@ -121,9 +118,9 @@ void fillarea(Mat img, vector<vector<Point> > contour) {
             }
         ax = end.x + pmod;
             for (int ay = start.y; ay <= end.y; ay += patch_w) {
-                //int w = (*ann)[ay][ax];
-                //int u = INT_TO_X(w), v = INT_TO_Y(w);
-                int u = 0, v = 0;
+                int w = (*ann)[ay][ax];
+                int u = INT_TO_X(w), v = INT_TO_Y(w);
+                //int u = 0, v = 0;
                 for (int j = 0; j <= patch_w; j++) {
                     for (int i = 0; i <= patch_w; i++) {
                         imgClone.at<unsigned char>(ay+j,ax+i) =

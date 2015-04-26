@@ -77,17 +77,6 @@ BITMAP *load_bitmap(const char *filename) {
 using namespace cv;
 
 BITMAP *createFromMat(Mat img) {
-    /*
-    int h = img.rows, w = img.cols;;
-    BITMAP *ans = new BITMAP(w, h);
-    unsigned char *p = (unsigned char *) ans->data;
-    for (int i = 0; i < w*h; i++) {
-        int s = img.at<unsigned char>(i);
-        *p++ = s; *p++ = s; *p++ = s;   // BW => "color". adapt later 
-        *p++ = 0;
-    }
-    return ans;
-    */
     imwrite("matsave.png", img);
     return load_bitmap("matsave.png");
 }
