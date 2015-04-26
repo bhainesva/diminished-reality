@@ -51,92 +51,96 @@ static void onMouse( int event, int x, int y, int, void* )
     }
 }
 
-void onClick(int event, int x, int y, int flags, void* userdata) {
-    if  ( event == EVENT_LBUTTONDOWN ) {
-        cout << "Left button of the mouse is clicked - position (" << x << ", " << y << ")" << endl;
-        vector<Point> *p = static_cast<vector<Point> *>(userdata);
-        p->push_back(Point(x, y));
+Mat getNeighbors(Mat img, Point p) {
+    int x = p.x;
+    int y = p.y;
+    Rect ROI(Point(max(0,x-1), max(0, y-1)), Point(min(x+2, img.size[0]), min(img.size[1], y+2)));
+	Mat ret = img(ROI);
+	return ret;
+}
+
+int getAverageInPatches(Mat img, BITMAP *ann, int x, int y) {
+    Mat imgclone = img.clone();
+    int ax = max(0, x - patch_w);
+    int ay = max(0, y - patch_w);
+    //cout << "x: " << x << " y: " << y << endl;
+    //cout << "patch_w: " << patch_w << endl;
+    //cout << "ax: " << ax << " ay: " << ay << endl;
+    int total = 0;
+    int count = 1;
+    for (int i=ax; i < x; i++) {
+        for (int j=ay; j < y; j++) {
+            int w = (*ann)[j][i];
+            int u = INT_TO_X(w), v = INT_TO_Y(w);
+            //circle(imgclone, Point(i, j), 4, 255);
+            //circle(imgclone, Point(u + (x-i), v + (y-j)), 4, 1);
+            total += img.at<unsigned char>(v + (y - j), u + (x - i));
+            count++;
+        }
+    }
+    return (int)(total/count);
+}
+
+
+void fill(Mat img, Mat mask) {
+    for (int i=0;i < mask.size().width; i++) {
+        for (int j=0;j < mask.size().height; j++) {
+            mask.at<unsigned char>(j,i) = 0;
+        }
     }
 }
 
+void fillAvg(Mat img, Mat mask, Point tl) {
+    for (int i=0;i < mask.size().width; i++) {
+        for (int j=0;j < mask.size().height; j++) {
+            Mat neighbors = getNeighbors(img, Point(i+tl.x, j+tl.y));
+            mask.at<unsigned char>(j,i) = (int)(sum(neighbors)[0]/countNonZero(neighbors));
+        }
+    }
+}
 
 void fillarea(Mat img, Rect bound) {
-    Mat imgClone = img.clone();
-
-
-    /*
-    vector<Point*> changing;
-    // Figure out which points need to change, ie inside the polygon defined by the contour
-    // Faster way woud be to do fillPoly, then threshold, then only change the white (/black?) pixels 
-    for (int j = 0; j < img.rows; j++) {
-        for (int i = 0; i < img.cols; i++) {
-            if (pointPolygonTest(contour[0], Point(i,j), false) != -1) {
-                Point p = Point(i,j);
-                int val = img.at<unsigned char>(p);
-                cout << j << ", " << i << ": " << val << endl;
-                changing.push_back(&p);
-            } 
-        }
-    }
-    */
-
+    //cvtColor(img, img, COLOR_BGR2HSV);
     // Initial implementation with a bounding box for area to be filled
-    rectangle( img, bound.tl(), bound.br(), (0, 255, 0), 2, 8, 0 );
-    Mat bounded = Mat(img, bound);
-    BITMAP* boundbit = createFromMat(bounded);
-    save_bitmap(boundbit, "bounded.png");
-    
-    //Show in a window
-    //namedWindow( "Contours", CV_WINDOW_AUTOSIZE );
-    //imshow( "Contours", bounded);
+    Mat roi = img(bound);
+    fill(img, roi);
+    fillAvg(img, roi, bound.tl());
+    imshow("TEST", img);
+    cout << "TEST";
+    waitKey(0);
 
-    // Source = Img - Target
-    // But since we don't want to get patches pointing to themselves, set target area to one color
-    // in a and another in b, since patchmatch finds correspondences a => b
+    cout << "Looping bounds." << endl;
     Mat aMat = img.clone();
-    Mat bMat = img.clone();
+    bound = bound + Size(patch_w, patch_w);
+    rectangle(aMat, bound, Scalar(0), CV_FILLED); 
+    // Now get correspondences from patchmatch
+    BITMAP *a = createFromMat(aMat);
+    BITMAP *roim = createFromMat(img);
+    BITMAP *ann = NULL, *annd = NULL;
+    patchmatch(roim, a, ann, annd);
 
-    cout << "Entering loop." << endl;
-    int pmod = patch_w / 2;
-    while (bound.width > pmod && bound.height > pmod) {
-        cout << "Looping bounds." << endl;
-        rectangle(bMat, bound, Scalar(255), CV_FILLED); 
-        bound = bound + Point(pmod, pmod);
-        bound -= Size(pmod, pmod);
-        // Now get correspondences from patchmatch
-        BITMAP *a = createFromMat(aMat);
-        BITMAP *b = createFromMat(bMat);
-        BITMAP *ann = NULL, *annd = NULL;
-        patchmatch(a, b, ann, annd);
-        save_bitmap(ann, "ann.png");
-        save_bitmap(annd, "annd.png");
-        Point start = bound.tl();
-        Point end = bound.br();
-        
-        // Fill top and bottom rows
-        for (int ay = start.y; ay <= end.y; ay += end.y - start.y) {
-            for (int ax = start.x; ax < end.x; ax += patch_w) {
-                int w = (*ann)[ay][ax];
-                int u = INT_TO_X(w), v = INT_TO_Y(w);
-                for (int j = 0; j < patch_w; j++) {
-                    for (int i = 0; i < patch_w; i++) {
-                        imgClone.at<unsigned char>(ay+j,ax+i) = 0;
-                            //imgClone.at<unsigned char>(v+j,u+i);                    
-                            //Uncomment this line to fill with Patchmatch 
-                    }
-                }
-            }
+    Mat imgC = img.clone();
+    
+    // Fill ROI; Each pixel gets average value from all corresponding patches it's a part of
+    for (int ax = bound.tl().x; ax <= bound.br().x; ax++) {
+        for (int ay = bound.tl().y; ay <= bound.br().y; ay++) {
+            cout << "A" << (int)img.at<unsigned char>(ay, ax) << endl;
+            cout << "B" << getAverageInPatches(img, ann, ax, ay) << endl;
+            img.at<unsigned char>(ay,ax) = getAverageInPatches(img, ann, ax, ay);
         }
-        imshow("Filled", imgClone);
-        waitKey(0);
-            //cout << "ax: " << ax << "\tay: " << ay << endl;
-            //cout << "u: " << u << "\tv: " << v << endl;
-            //cout << "Patch filled." << endl;
     }
 
+    imshow("Clone", imgC);
+    cout << "WAIT" << endl;
     waitKey(0);
+    imshow("Filled", img);
+
+    cout << "DONE" << endl;
+    waitKey(0);
+    //getAverageInPatch(img, ann, bound.tl().x, bound.tl().y);
     return;
 }
+
 
 
 int main(int argc, char* argv[])
@@ -161,7 +165,7 @@ int main(int argc, char* argv[])
     createTrackbar( "Vmax", "CamShift Demo", &vmax, 256, 0 );
     createTrackbar( "Smin", "CamShift Demo", &smin, 256, 0 );
 
-    Mat frame, hsv, hue, mask, hist, histimg = Mat::zeros(200, 320, CV_8UC3), backproj;
+    Mat frame, hsv, gray, hue, mask, hist, histimg = Mat::zeros(200, 320, CV_8UC3), backproj;
     bool paused = false;
 
     double fps = cap.get(CV_CAP_PROP_FPS); //get the frames per seconds of the video
@@ -249,8 +253,10 @@ int main(int argc, char* argv[])
                 //ellipse( img, trackBox, Scalar(0,0,255), -1, CV_AA );
                 Rect bound = boundingRect(vec[0]);
                 rectangle(img, bound, Scalar(255), CV_FILLED); 
-                //fillarea(image, bound);
                 imshow( "Histogram", img );
+                cvtColor( image, gray, COLOR_BGR2GRAY );
+                fillarea(gray, bound);
+                exit(0);
             }
         }
         else if( trackObject < 0 )
