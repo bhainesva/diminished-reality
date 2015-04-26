@@ -14,7 +14,7 @@ const char* winName="MyVideo";
 char imgName[15];
 vector<Point> ptVector;
 Mat image;
-
+Mat img;
 bool backprojMode = false;
 bool selectObject = false;
 int trackObject = 0;
@@ -60,11 +60,9 @@ void onClick(int event, int x, int y, int flags, void* userdata) {
 }
 
 
-void fillarea(Mat img, vector<vector<Point> > contour) {
+void fillarea(Mat img, Rect contour) {
     Mat imgClone = img.clone();
     double area = contourArea(contour[0]);
-    cout << "Area: " << area << endl;
-    cout << "Depth: " << img.depth() << endl;
 
     /*
     vector<Point*> changing;
@@ -83,7 +81,6 @@ void fillarea(Mat img, vector<vector<Point> > contour) {
     */
 
     // Initial implementation with a bounding box for area to be filled
-    Rect bound = boundingRect( Mat(contour[0]) );
     rectangle( img, bound.tl(), bound.br(), (0, 255, 0), 2, 8, 0 );
     Mat bounded = Mat(img, bound);
     BITMAP* boundbit = createFromMat(bounded);
@@ -144,7 +141,7 @@ void fillarea(Mat img, vector<vector<Point> > contour) {
 
 int main(int argc, char* argv[])
 {
-    VideoCapture cap("starburst.mp4"); // open the video file for reading
+    VideoCapture cap(0); // open the video file for reading
 
     if ( !cap.isOpened() )  // if not success, exit program
     {
@@ -244,11 +241,16 @@ int main(int argc, char* argv[])
                 Scalar color = Scalar( rng.uniform(0, 255), rng.uniform(0,255), rng.uniform(0,255) );
 
                 //Fill Area
-                fillarea(image, vec);
-                fillPoly( image, vec, color );
-                for( int j = 0; j < 4; j++ )
-                    line( image, rect_points[j], rect_points[(j+1)%4], color, 1, 8 );
-                ellipse( image, trackBox, Scalar(0,0,255), -1, CV_AA );
+                img = image.clone();
+                img = img.setTo(Scalar(0));
+                //fillPoly( img, vec, color );
+                //for( int j = 0; j < 4; j++ )
+                //    line( img, rect_points[j], rect_points[(j+1)%4], color, 1, 8 );
+                //ellipse( img, trackBox, Scalar(0,0,255), -1, CV_AA );
+                Rect bound = boundingRect(vec[0]);
+                rectangle(img, bound, Scalar(255), CV_FILLED); 
+                fillarea(image, bound);
+                imshow( "Histogram", img );
             }
         }
         else if( trackObject < 0 )
@@ -260,8 +262,10 @@ int main(int argc, char* argv[])
             bitwise_not(roi, roi);
         }
 
+        img = image.clone();
+        img = img.setTo(Scalar(255));
         imshow( "CamShift Demo", image );
-        imshow( "Histogram", histimg );
+        //imshow( "Histogram", img );
 
         char c = (char)waitKey(10);
         if( c == 27 )
