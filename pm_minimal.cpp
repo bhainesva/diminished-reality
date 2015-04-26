@@ -114,7 +114,7 @@ void save_bitmap(BITMAP *bmp, const char *filename) {
    PatchMatch, using L2 distance between upright patches that translate only
    ------------------------------------------------------------------------- */
 
-int patch_w  = 7;
+int patch_w  = 9;
 int pm_iters = 5;
 int rs_max   = INT_MAX;
 
