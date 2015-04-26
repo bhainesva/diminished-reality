@@ -60,9 +60,9 @@ void onClick(int event, int x, int y, int flags, void* userdata) {
 }
 
 
-void fillarea(Mat img, Rect contour) {
+void fillarea(Mat img, Rect bound) {
     Mat imgClone = img.clone();
-    double area = contourArea(contour[0]);
+
 
     /*
     vector<Point*> changing;
@@ -249,7 +249,7 @@ int main(int argc, char* argv[])
                 //ellipse( img, trackBox, Scalar(0,0,255), -1, CV_AA );
                 Rect bound = boundingRect(vec[0]);
                 rectangle(img, bound, Scalar(255), CV_FILLED); 
-                fillarea(image, bound);
+                //fillarea(image, bound);
                 imshow( "Histogram", img );
             }
         }
@@ -265,7 +265,6 @@ int main(int argc, char* argv[])
         img = image.clone();
         img = img.setTo(Scalar(255));
         imshow( "CamShift Demo", image );
-        //imshow( "Histogram", img );
 
         char c = (char)waitKey(10);
         if( c == 27 )
