@@ -59,8 +59,11 @@ Mat getNeighbors(Mat img, Point p) {
 	return ret;
 }
 
-int getAverageInPatches(Mat img, BITMAP *ann, int x, int y) {
+int getAverageInPatches(Mat img, BITMAP *ann, int x, int y, int files) {
     Mat imgclone = img.clone();
+    string filename = "./gif/gifMat";
+    string result;
+    stringstream sstm;
     int ax = max(0, x - patch_w);
     int ay = max(0, y - patch_w);
     //cout << "x: " << x << " y: " << y << endl;
@@ -72,12 +75,18 @@ int getAverageInPatches(Mat img, BITMAP *ann, int x, int y) {
         for (int j=ay; j < y; j++) {
             int w = (*ann)[j][i];
             int u = INT_TO_X(w), v = INT_TO_Y(w);
-            //circle(imgclone, Point(i, j), 4, 255);
-            //circle(imgclone, Point(u + (x-i), v + (y-j)), 4, 1);
+            circle(imgclone, Point(i, j), 4, 255);
+            circle(imgclone, Point(u + (x-i), v + (y-j)), 4, 1);
             total += img.at<unsigned char>(v + (y - j), u + (x - i));
             count++;
         }
     }
+    sstm << filename << files << ".jpg";
+    result = sstm.str();
+    imshow("FUKECK", imgclone);
+    imwrite(result, imgclone);
+    cout << "FUCEK" << endl;
+    waitKey(0);
     return (int)(total/count);
 }
 
@@ -106,12 +115,13 @@ void fillarea(Mat img, Rect bound) {
     fill(img, roi);
     fillAvg(img, roi, bound.tl());
     imshow("TEST", img);
+    imwrite("avgFill.jpg", img);
     cout << "TEST";
     waitKey(0);
 
     cout << "Looping bounds." << endl;
     Mat aMat = img.clone();
-    bound = bound + Size(patch_w, patch_w);
+    //bound = bound + Size(patch_w, patch_w);
     rectangle(aMat, bound, Scalar(0), CV_FILLED); 
     // Now get correspondences from patchmatch
     BITMAP *a = createFromMat(aMat);
@@ -122,11 +132,13 @@ void fillarea(Mat img, Rect bound) {
     Mat imgC = img.clone();
     
     // Fill ROI; Each pixel gets average value from all corresponding patches it's a part of
+    int count = 0;
     for (int ax = bound.tl().x; ax <= bound.br().x; ax++) {
         for (int ay = bound.tl().y; ay <= bound.br().y; ay++) {
             cout << "A" << (int)img.at<unsigned char>(ay, ax) << endl;
-            cout << "B" << getAverageInPatches(img, ann, ax, ay) << endl;
-            img.at<unsigned char>(ay,ax) = getAverageInPatches(img, ann, ax, ay);
+            //cout << "B" << getAverageInPatches(img, ann, ax, ay) << endl;
+            count++;
+            img.at<unsigned char>(ay,ax) = getAverageInPatches(img, ann, ax, ay, count);
         }
     }
 
@@ -134,6 +146,7 @@ void fillarea(Mat img, Rect bound) {
     cout << "WAIT" << endl;
     waitKey(0);
     imshow("Filled", img);
+    imwrite("Filled.jpg", img);
 
     cout << "DONE" << endl;
     waitKey(0);
@@ -145,13 +158,17 @@ void fillarea(Mat img, Rect bound) {
 
 int main(int argc, char* argv[])
 {
-    VideoCapture cap(0); // open the video file for reading
+    VideoCapture cap("out.avi"); // open the video file for reading
 
     if ( !cap.isOpened() )  // if not success, exit program
     {
          cout << "Cannot open the video file" << endl;
          return -1;
     }
+    Size S = Size( (int)cap.get(CV_CAP_PROP_FRAME_WIDTH),   
+                (int)cap.get(CV_CAP_PROP_FRAME_HEIGHT));  
+    VideoWriter outVideo;  
+    outVideo.open("outVideo.avi", CV_FOURCC('M', 'J', 'P', 'G'), cap.get(CV_CAP_PROP_FPS), S);
 
     Rect trackWindow;
     int hsize = 16;
@@ -167,6 +184,7 @@ int main(int argc, char* argv[])
 
     Mat frame, hsv, gray, hue, mask, hist, histimg = Mat::zeros(200, 320, CV_8UC3), backproj;
     bool paused = false;
+    bool first = true;
 
     double fps = cap.get(CV_CAP_PROP_FPS); //get the frames per seconds of the video
     cout << "Frame per seconds : " << fps << endl;
@@ -248,8 +266,8 @@ int main(int argc, char* argv[])
                 img = image.clone();
                 img = img.setTo(Scalar(0));
                 //fillPoly( img, vec, color );
-                //for( int j = 0; j < 4; j++ )
-                //    line( img, rect_points[j], rect_points[(j+1)%4], color, 1, 8 );
+                for( int j = 0; j < 4; j++ )
+                    line( image, rect_points[j], rect_points[(j+1)%4], 0, 1, 8 );
                 //ellipse( img, trackBox, Scalar(0,0,255), -1, CV_AA );
                 Rect bound = boundingRect(vec[0]);
                 rectangle(img, bound, Scalar(255), CV_FILLED); 
@@ -271,6 +289,15 @@ int main(int argc, char* argv[])
         img = image.clone();
         img = img.setTo(Scalar(255));
         imshow( "CamShift Demo", image );
+        if (!paused) {
+            outVideo << image;
+        }
+        if (first) {
+            paused = true;
+            first = false;
+            cvtColor(image, image, COLOR_BGR2GRAY);
+            imwrite("cover.jpg", image);
+        }
 
         char c = (char)waitKey(10);
         if( c == 27 )
