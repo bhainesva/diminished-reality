@@ -106,9 +106,11 @@ The algorithm outputs a rotated rectangle which for simplicity in the second ste
 \subsection{Infilling}
 The paper describes a somewhat complex process by which the portion of the image masked by the tracking stage of the algorithm is filled in. The general approach involves randomly searching for patch correspondances between patches of the image inside of the masked area and patches outside of the mask. After correspondances have been established an iterative function described by Simakov is used to update the value of each pixel inside of the masked region until convergence. In order to do this first the image is scaled down multiple times, then each pixel under the mask is filled in with the average value of its neighboring unmasked pixels. The authors argue that at such low resolution this serves as an acceptable initial approximation. Then correspondances are established as described above, the updating function is run, and results are passed up to the next higher resolution level in the pyramid. 
 
-At this point in our implementation we had realized that obtaining real time results was not a feasible goal. In light of this, and in order to maintain simplicity in the code, some of the optimizing components of this process were omitted. In particular, no image pyramid is created. After the mask is created we immediately fill in the masked pixels with the average values of their neighbors. Then Barnes's PatchMatch is run to establish correspondances. Each pixel in the region of interest is replaced with the average value of the corresponding pixel in every patch that contains it. 
+At this point in our implementation we had realized that obtaining real time results was not a feasible goal. In light of this, and in order to maintain simplicity in the code, some of the optimizing components of this process were omitted. After the mask is created we immediately fill in the masked pixels with the average values of their neighbors. Then Barnes's PatchMatch is run to establish correspondances. Each pixel in the region of interest is replaced with the average value of the corresponding pixel in every patch that contains it. 
 
 This was not the first approach to inpainting that we attempted. At first, before discovering the iterative pixel-by-pixel update function we attempted to take the information obtained from PatchMatch and use it directly. We set the masked region to contain all 0s and then found correspondances. We gradually filled in the area by pasting in patches that overlapped the boundary by a small amount. We also tried initializing the masked area to contain average values of the neighbors, as we do currently, and then finding correspondances and simply filling in the area by pasting in non-overlapping patches. Both of these approaches suffered from a common problem that seems obvious in retrospect. Although they should all be somewhat similar, patches found in the source image can come from very different locations and pasting them directly into the region of interest creates a very blocky discrete fill. The result is jarringly different than the smooth textures one would hope to see on most surfaces. 
+
+Results from the inpainting step suggested that the final result was heavily influenced by how the region was initiallized. In light of this we attempted a third method of inpainting. In this method we created an image pyramid of the original image. At the coarsest layer we filled in the region with average values and updated using PatchMatch as described above. We then took this result and expanded it to the next level of the pyramid, we ran PatchMatch again and repeated this process until we reached the finest pyramid layer. As will be shown in the results section this approach tended to produce a more homogeneous fill but not necessarily a better one.
 
 \section{Results}
 \subsection{Object Tracking}
@@ -134,24 +136,32 @@ Our infilling results were less successful. Given a single frame and a masked re
 
 Our general process divided the infilling portion into two steps. The first of these steps involved iterating through each of the pixels in the masked region and replacing it with the average value of its neighbors. The output of this step was not intended to be a satisfactory final output but merely to act as a sufficient initialization for the more in depth following step where PatchMatch is applied. The only complication with this step is that the pixels must be looped through in a valid order. If iteration begins in the middle then it won't be able to fill in any values. Apart from that minor note, because this is merely an approximated initialization step, we concluded that the order was probably insignificant. We loop through the pixel matrix in standard C order. Some images showing examples of this step are shown below. 
 
-One note about the images. They are grayscale. This is because the original Herling and Broll algorithm only does computations on grayscale images in order to reduce computation time. We began our project intending to follow the same model and aspect was never updated. 
+One note about the images. They are grayscale. This is because the original Herling and Broll algorithm only does computations on grayscale images in order to reduce computation time. We began our project intending to follow the same model and this aspect was never updated. 
 
-The first pair of sample images show a case where the average fill step is almost sufficient on its own. The backgroud is of uniform texture and lit in such a way that the fill is almost indistinguishable.
+The first pair of images shows the result of the first inpainting approach described in the design section. The result is clearly incorrect and we quickly decided to try different methods.
+\begin{center}
+\includegraphics[width=0.8\textwidth]{starburstBeforeFill.jpg}
+
+\includegraphics[width=0.8\textwidth]{starburstFirst.jpg}
+\end{center}
+
+The second pair of sample images show a case where the average fill step is almost sufficient on its own. The backgroud is of uniform texture and lit in such a way that the fill is almost indistinguishable.
 
 \begin{center}
 \includegraphics[width=0.8\textwidth]{starburstBeforeFill.jpg}
 
 \includegraphics[width=0.8\textwidth]{starburstAfterFill.jpg}
 \end{center}
+\\
 
 This pair of images shows a situation where the average fill step might be expected to do a good job but small difference in lighting cause the average fill to propogate in a way that produces an incongruous result.
 
 \begin{center}
 \includegraphics[width=0.8\textwidth]{bowlingBeforeFill.jpg}
 \includegraphics[width=0.8\textwidth]{bowlingAfterFill.jpg}
-\end{center}
+\end{center}\\
 
-The final pair of test images shows a case when the average fill could not be expected to be sufficient. It is unable to account for the presence of text and my fingers in the environment of the phone.
+The final pair of test images shows a case when the average fill could not be expected to be sufficient. It is unable to account for the presence of text and my fingers in the neighborhood of the phone.
 
 \begin{center}
 \includegraphics[width=0.8\textwidth]{dalBeforeFill.jpg}
@@ -159,6 +169,7 @@ The final pair of test images shows a case when the average fill could not be ex
 \includegraphics[width=0.8\textwidth]{dalAfterFill.jpg}
 \end{center}
 
+The next images show results from the third method of inpainting that utilized downsampling.
 The next step after the average fill step is to make use of the PatchMatch correspondances in order to refine the results. Our first attempt at this step used the following steps.
 \begin{enumerate}
     \item Run PatchMatch to establish correspondances.
@@ -189,6 +200,6 @@ The limitations on the system come primarilly in the implementation of the inpai
 
 Beyond that, there are a few limitations of our approach in general that would have been relevant even if our specific implementation had been more successful. A few of these are a result of the CAMshift tracking process used. In order to run quickly the algorithm is completely dependent on hue distributions in the image. This means that if the object that should be tracked has a similar hue to any object in the background it is impossible for the algorithm to distinguish them. This limitation could be overcome by taking into account channels in the image besides the hue when running the algorithm at the cost of an increased runtime. 
 
-There are also limitations imposed by reliance on unmodified PatchMatch. Using PatchMatch as is withouth additional optimizations eans that it is not possible to achieve real time results.
+There are also limitations imposed by reliance on unmodified PatchMatch. Using PatchMatch as is withouth additional optimizations means that it is not possible to achieve real time results.
 \end{document}
 
