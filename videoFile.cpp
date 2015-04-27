@@ -47,6 +47,7 @@ void fillarea(Mat img, vector<vector<Point> > contour) {
 
     // Initial implementation with a bounding box for area to be filled
     Rect bound = boundingRect( Mat(contour[0]) );
+    // Make the bounding box a multiple of the patch width
     bound += Size(patch_w - (bound.width % patch_w), patch_w - (bound.height % patch_w));
 
     // Source = Img - Target
@@ -55,24 +56,26 @@ void fillarea(Mat img, vector<vector<Point> > contour) {
 
     cout << "Entering loop." << endl;
     int pmod = patch_w / 2;
+    int minSide = MIN(bound.width, bound.height);
     while (bound.width >= pmod && bound.height >= pmod) {
-        cout << "Looping bounds." << endl;
+        int minSideMod = MIN(bound.width, bound.height);
+        cout << "Looping bounds: " << (double)minSideMod/minSide << endl;
         //bound += Point(pmod, pmod);
-        Mat aMat = img.clone();
-        Mat bMat = img.clone();
+        Mat aMat = imgClone.clone();
+        Mat bMat = imgClone.clone();
+        rectangle(bMat, bound, Scalar(255), CV_FILLED);
+        rectangle(aMat, bound, Scalar(255), CV_FILLED); 
         bound = bound + Point(patch_w, patch_w);
         bound -= Size(patch_w*2, patch_w*2);
-        rectangle(aMat, bound, Scalar(0), CV_FILLED); 
-        rectangle(bMat, bound, Scalar(255), CV_FILLED);
         // Now get correspondences from patchmatch
         BITMAP *a = createFromMat(aMat);
         BITMAP *b = createFromMat(bMat);
         BITMAP *ann = NULL, *annd = NULL;
         patchmatch(a, b, ann, annd);
-        Rect fill = Rect(bound) - Point(pmod, pmod);
-        fill += Size(patch_w, patch_w);
-        Point start = fill.tl();
-        Point end = fill.br();
+        //Rect fill = Rect(bound) - Point(pmod, pmod);
+        //fill += Size(patch_w, patch_w);
+        Point start = bound.tl();
+        Point end = bound.br();
         
         // Fill top and bottom rows
         int ay = start.y;
@@ -84,7 +87,6 @@ void fillarea(Mat img, vector<vector<Point> > contour) {
                     for (int i = 0; i <= patch_w; i++) {
                         imgClone.at<unsigned char>(ay+j,ax+i) =
                             imgClone.at<unsigned char>(v+j,u+i);                    
-                            //Uncomment this line to fill with Patchmatch 
                     }
                 }
             }
@@ -97,7 +99,6 @@ void fillarea(Mat img, vector<vector<Point> > contour) {
                     for (int i = 0; i <= patch_w; i++) {
                         imgClone.at<unsigned char>(ay+j,ax+i) = 
                             imgClone.at<unsigned char>(v+j,u+i);                    
-                            //Uncomment this line to fill with Patchmatch 
                     }
                 }
             }
@@ -112,7 +113,6 @@ void fillarea(Mat img, vector<vector<Point> > contour) {
                     for (int i = 0; i <= patch_w; i++) {
                         imgClone.at<unsigned char>(ay+j,ax+i) =
                             imgClone.at<unsigned char>(v+j,u+i);                    
-                            //Uncomment this line to fill with Patchmatch 
                     }
                 }
             }
@@ -125,7 +125,6 @@ void fillarea(Mat img, vector<vector<Point> > contour) {
                     for (int i = 0; i <= patch_w; i++) {
                         imgClone.at<unsigned char>(ay+j,ax+i) =
                             imgClone.at<unsigned char>(v+j,u+i);                    
-                            //Uncomment this line to fill with Patchmatch 
                     }
                 }
             }
